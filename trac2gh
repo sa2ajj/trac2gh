@@ -1,10 +1,36 @@
 #! /usr/bin/python
+"""
+export trac tickets to GitHub issues
+"""
+from argparse import ArgumentParser
+
+from trac2 import (GitHubAdapter,
+                   TracAdapter)
 
 
 def main():
     """
     entry point
     """
+    parser = ArgumentParser(description=__doc__)
+
+    parser.add_argument('--trac-env', required=True, metavar='DIR',
+                        help='location of the trac environment')
+    parser.add_argument('--milestone', action='append', default=list(),
+                        help='these milestones only.  Default: all open '
+                             'tickets')
+    parser.add_argument('--gh-project', required=True, metavar='PROJECT',
+                        help='GitHub project to create issues in')
+    parser.add_argument('--gh-token', required=True, metavar='TOKEN',
+                        help='API token to use to create issues')
+
+    args = parser.parse_args()
+
+    trac = TracAdapter(args.trac_env, args.milestone)
+    github = GitHubAdapter(args.gh_project, args.gh_token)
+
+    for ticket in trac.get_tickets():
+        github.create_issue(ticket.as_json())
 
 
 if __name__ == '__main__':
