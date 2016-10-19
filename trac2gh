@@ -1,11 +1,22 @@
-#! /usr/bin/python
+#! /usr/bin/env python2
 """
 export trac tickets to GitHub issues
 """
 from argparse import ArgumentParser
 
-from trac2 import (GitHubAdapter,
-                   TracAdapter)
+from trac2.github import GitHubAdaptor
+from trac2.trac import TracAdaptor
+
+
+def parse_config(filename):
+    """
+    a config reader
+    """
+    config = dict()
+
+    execfile(filename, dict(), config)
+
+    return config
 
 
 def main():
@@ -14,23 +25,20 @@ def main():
     """
     parser = ArgumentParser(description=__doc__)
 
-    parser.add_argument('--trac-env', required=True, metavar='DIR',
-                        help='location of the trac environment')
-    parser.add_argument('--milestone', action='append', default=list(),
-                        help='these milestones only.  Default: all open '
-                             'tickets')
-    parser.add_argument('--gh-project', required=True, metavar='PROJECT',
-                        help='GitHub project to create issues in')
-    parser.add_argument('--gh-token', required=True, metavar='TOKEN',
-                        help='API token to use to create issues')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='do not perform any modifications')
+    parser.add_argument('config', metavar='FILE',
+                        help='configuration file for the migration')
 
     args = parser.parse_args()
 
-    trac = TracAdapter(args.trac_env, args.milestone)
-    github = GitHubAdapter(args.gh_project, args.gh_token)
+    config = parse_config(args.config)
 
-    for ticket in trac.get_tickets():
-        github.create_issue(ticket.as_json())
+    github = GitHubAdaptor(config['github'], args.dry_run)
+
+    for ticket in TracAdaptor(config['trac'], args.dry_run).get_tickets():
+        issue, url = github.create_issue(ticket.as_dict())
+        ticket.mark_exported(issue, url)
 
 
 if __name__ == '__main__':
